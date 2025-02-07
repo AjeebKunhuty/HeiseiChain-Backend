@@ -1,14 +1,16 @@
-# Use an official Java runtime as a base image
-FROM openjdk:21-jdk-slim
-
-# Set the working directory inside the container
+# Use Maven to build the project
+FROM maven:3.8.6-eclipse-temurin-17 AS build
 WORKDIR /app
+COPY . .
+RUN mvn clean package -DskipTests
 
-# Copy the built JAR file into the container
-COPY target/HeiseiChain-0.0.1-SNAPSHOT.jar app.jar
+# Use a lightweight JDK image for running the app
+FROM eclipse-temurin:17-jdk-alpine
+WORKDIR /app
+COPY --from=build /app/target/HeiseiChain-0.0.1-SNAPSHOT.jar app.jar
 
-# Expose the application port
+# Expose port 8080
 EXPOSE 8080
 
-# Run the JAR file when the container starts
+# Run the application
 CMD ["java", "-jar", "app.jar"]
