@@ -1,11 +1,14 @@
-# Use Maven to build the project
-FROM maven:3.8.6-eclipse-temurin-17 AS build
+# Use a Maven image that supports Java 21
+FROM maven:3.9.6-eclipse-temurin-21 AS build
+
 WORKDIR /app
 COPY . .
+
+# Build the project
 RUN mvn clean package -DskipTests
 
 # Use a lightweight JDK image for running the app
-FROM eclipse-temurin:17-jdk-alpine
+FROM eclipse-temurin:21-jdk-alpine
 WORKDIR /app
 COPY --from=build /app/target/HeiseiChain-0.0.1-SNAPSHOT.jar app.jar
 
