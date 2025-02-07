@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Generate Blockchain Report</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="container">
+    <h1>Generate Blockchain Report</h1>
+    <form th:action="@{/api/blockchain/generateReport}" method="post">
+        <div>
+            <label for="startDateTime">Start Date and Time:</label>
+            <input type="datetime-local" id="startDateTime" name="startDateTime" required>
+        </div>
+        <div>
+            <label for="endDateTime">End Date:</label>
+            <input type="datetime-local" id="endDateTime" name="endDateTime" required>
+        </div>
+        <button type="submit">Generate Report</button>
+    </form>
+</div>
+</body>
+</html>
