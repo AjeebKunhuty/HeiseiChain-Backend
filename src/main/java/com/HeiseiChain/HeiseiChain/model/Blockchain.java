@@ -114,10 +114,13 @@ public class Blockchain {
         StringBuilder csvData = new StringBuilder();
 
         // Adding CSV headers
-        csvData.append("Block Number,Hash,Previous Hash,Timestamp,Transaction Count,Transactions\n");
+        csvData.append("Block Number,Hash,Previous Hash,Timestamp,Sender,Recipient,Commodity,Value\n");
 
         for (int i = 0; i < chain.size(); i++) {
             Block block = chain.get(i);
+
+            if(block.getPreviousHash().equals("0"))
+                continue;
 
             // Convert block timestamp to LocalDateTime
             LocalDateTime blockDateTime = Instant.ofEpochMilli(block.getTimestamp())
@@ -133,6 +136,8 @@ public class Blockchain {
             StringBuilder transactionDetails = new StringBuilder();
             if (block.getTransactions() != null && !block.getTransactions().isEmpty()) {
                 for (Transaction transaction : block.getTransactions()) {
+                    if(transaction.getMetadata().contains("User Registration of"))
+                        continue;
                     transactionDetails.append("Sender: ")
                             .append(findUserByPublicKey(transaction.getSender(), walletDatabase))
                             .append(" | Recipient: ")
@@ -142,18 +147,30 @@ public class Blockchain {
                             .append(" | Metadata: ")
                             .append(transaction.getMetadata())
                             .append(" || "); // Separator for transactions
+
+                    csvData.append(i).append(",")
+                            .append(block.getHash()).append(",")
+                            .append(block.getPreviousHash()).append(",")
+                            .append(block.getFormattedTimestamp()).append(",")
+                            .append(findUserByPublicKey(transaction.getSender(), walletDatabase)).append(",")
+                            .append(findUserByPublicKey(transaction.getRecipient(), walletDatabase)).append(",")
+                            .append(transaction.getMetadata()).append(",")
+                            .append(transaction.getValue()).append(",")
+                            .append("\n");
+
                 }
             } else {
-                transactionDetails.append("No transactions in this block");
+                csvData.append(i).append(",")
+                        .append(block.getHash()).append(",")
+                        .append(block.getPreviousHash()).append(",")
+                        .append(block.getFormattedTimestamp()).append(",")
+                        .append(block.getTransactions() != null ? block.getTransactions().size() : 0).append(",")
+                        .append("\"").append("No transactions in this block").append("\"\n"); // Enclose transactions in quotes to handle commas
+
+//                transactionDetails.append();
             }
 
             // Add block data to CSV
-            csvData.append(i).append(",")
-                    .append(block.getHash()).append(",")
-                    .append(block.getPreviousHash()).append(",")
-                    .append(block.getFormattedTimestamp()).append(",")
-                    .append(block.getTransactions() != null ? block.getTransactions().size() : 0).append(",")
-                    .append("\"").append(transactionDetails.toString()).append("\"\n"); // Enclose transactions in quotes to handle commas
         }
 
         return csvData.toString();

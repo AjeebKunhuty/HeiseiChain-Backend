@@ -40,18 +40,33 @@ public class Wallet {
         }
     }
 
-    public List<UTXO> getUTXOs(String metadata) {
+    public List<UTXO> getUTXOs(String commodity) {
         List<UTXO> utxos = new ArrayList<>();
 
         // Iterate through the global UTXO map and find UTXOs for this wallet
         for (TransactionOutput output : HeiseiChain.UTXOs.values()) {
-            if (output.recipient.equals(this.publicKey) && output.commodity.equals(metadata)) {
+            if (output.recipient.equals(this.publicKey) && output.commodity.equals(commodity)) {
                 // Add UTXO to the list if it belongs to this wallet
                 utxos.add(new UTXO(output.id, output.recipient, output.value,output.commodity));
             }
         }
 
         return utxos;
+    }
+
+    public Map<String, Float> getCommodityQuantities() {
+        Map<String, Float> commodityQuantities = new HashMap<>();
+
+        // Iterate through the global UTXO map and sum up quantities for each commodity
+        for (TransactionOutput output : HeiseiChain.UTXOs.values()) {
+            if (output.recipient.equals(this.publicKey)) {
+                // Add to the existing quantity or initialize if not present
+                commodityQuantities.put(output.commodity,
+                        commodityQuantities.getOrDefault(output.commodity, 0.0f) + output.value);
+            }
+        }
+
+        return commodityQuantities;
     }
 
 

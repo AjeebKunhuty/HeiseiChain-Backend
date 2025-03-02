@@ -62,6 +62,7 @@ public class BlockchainController {
             }
     }
 
+    /**
     @PostMapping("/create")
     public String createTransaction(
             @RequestParam String senderUsername,
@@ -149,6 +150,7 @@ public class BlockchainController {
             return "Error creating transaction: " + e.getMessage();
         }
     }
+     */
 
     @PostMapping("/generateReport")
     public ResponseEntity<byte[]> generateReport(
@@ -170,5 +172,108 @@ public class BlockchainController {
         return ResponseEntity.ok()
                 .headers(headers)
                 .body(csvBytes);
+    }
+
+    @PostMapping("/creation")
+    public String creationTransaction(
+            @RequestParam String senderUsername,
+            @RequestParam String recipientUsername,
+            @RequestParam float value,
+            @RequestParam String transactionType,
+            @RequestParam String commodity) {
+        try {
+            // Step 1: Fetch the sender's public key
+            PublicKey senderPublicKey = blockchainService.getPublicKeyByUsername(senderUsername);
+            if (senderPublicKey == null) {
+                return "Error: Sender username '" + senderUsername + "' is not registered!";
+            }
+
+
+            // Step 2: Fetch the recipient's public key
+            PublicKey recipientPublicKey = blockchainService.getPublicKeyByUsername(recipientUsername);
+            if (recipientPublicKey == null) {
+                return "Error: Recipient username '" + recipientUsername + "' is not registered!";
+            }
+
+            // Step 3: Fetch the sender's wallet
+            Wallet senderWallet = blockchainService.getWalletByUsername(senderUsername);
+            if (senderWallet == null || senderWallet.privateKey == null) {
+                return "Error: Could not retrieve wallet or private key for sender '" + senderUsername + "'!";
+            }
+
+            //System.out.println(senderWallet.privateKey);
+
+            // Step 4: Create inputs (UTXOs) for the transaction
+            ArrayList<TransactionInput> inputs = new ArrayList<>();
+
+            // Skip UTXO checks if the metadata is "donation"
+            if (!senderWallet.role.equals("donor")) {
+                // Fetch UTXOs (unspent transaction outputs) for the sender
+                List<UTXO> availableUTXOs = senderWallet.getUTXOs(commodity);
+                if (availableUTXOs == null || availableUTXOs.isEmpty()) {
+                    return "Error: No UTXOs available for sender '" + senderUsername + "'!";
+                }
+
+                // Prepare inputs for the transaction
+                float totalInputValue = 0;
+                for (UTXO utxo : availableUTXOs) {
+                    inputs.add(new TransactionInput(utxo.getId()));
+                    totalInputValue += utxo.getValue();
+                    if (totalInputValue >= value) {
+                        break;
+                    }
+                }
+
+                // Check if the sender has sufficient funds
+                if (totalInputValue < value) {
+                    return String.format(
+                            "Error: Insufficient funds for sender '%s'. Available: %.2f, Required: %.2f.",
+                            senderUsername, totalInputValue, value
+                    );
+                }
+
+            }
+
+            // Step 5: Create the transaction
+            String transactionID = blockchainService.createTransactionRequest(senderPublicKey, recipientPublicKey, commodity, value, inputs);
+            return transactionID;
+        } catch (Exception e) {
+            return "Error creating transaction: " + e.getMessage();
+        }
+    }
+
+    @PostMapping("/confirm")
+    public String confirmTransaction(
+            @RequestParam String senderUsername,
+            @RequestParam String recipientUsername,
+            @RequestParam float value,
+            @RequestParam String transactionType,
+            @RequestParam String commodity,
+            @RequestParam String transactionID) {
+        try{
+            Transaction transaction = blockchainService.confirmTransaction(transactionID);
+
+            // Step 6: Generate the transaction's signature using the sender's private key
+            Wallet senderWallet = blockchainService.getWalletByUsername(senderUsername);
+            transaction.generateSignature(senderWallet.privateKey);
+
+            // Step 7: Process the transaction
+            boolean success = transaction.processTransaction();
+            //System.out.println(success);
+            if (success) {
+                blockchainService.addTransaction(transaction);
+
+                return "Transaction created successfully! Transaction ID: " + transaction.getTransactionId();
+            } else {
+                return "Transaction failed during processing!";
+            }
+        } catch (Exception e) {
+            return "Error creating transaction: " + e.getMessage();
+        }
+    }
+
+    @GetMapping("/displayWallet")
+    public String displayWallet(){
+        return blockchainService.displayWallets();
     }
 }
