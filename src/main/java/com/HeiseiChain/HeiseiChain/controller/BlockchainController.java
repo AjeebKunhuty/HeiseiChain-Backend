@@ -245,10 +245,6 @@ public class BlockchainController {
     @PostMapping("/confirm")
     public String confirmTransaction(
             @RequestParam String senderUsername,
-            @RequestParam String recipientUsername,
-            @RequestParam float value,
-            @RequestParam String transactionType,
-            @RequestParam String commodity,
             @RequestParam String transactionID) {
         try{
             Transaction transaction = blockchainService.confirmTransaction(transactionID);
