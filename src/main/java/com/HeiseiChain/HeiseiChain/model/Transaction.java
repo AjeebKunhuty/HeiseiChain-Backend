@@ -15,6 +15,7 @@ public class Transaction {
     public float value; // Value of donation (money or goods)
     public String metadata; // Additional information like goods type, quantity, etc.
     public byte[] signature; // Signature to ensure authenticity
+    public long creationTime;
 
     public ArrayList<TransactionInput> inputs = new ArrayList<TransactionInput>(); // List of transaction inputs
     public ArrayList<TransactionOutput> outputs = new ArrayList<TransactionOutput>(); // List of transaction outputs
@@ -31,6 +32,7 @@ public class Transaction {
         this.inputs = inputs;
         this.outputs = new ArrayList<>();
         this.transactionId = calculateTransactionId();  // Ensure ID is calculated correctly here
+        this.creationTime = System.currentTimeMillis()+ (5 * 60 + 30) * 60 * 1000;
     }
 
     // Calculates the unique transaction ID based on transaction details (sender, recipient, value, metadata, inputs, outputs)

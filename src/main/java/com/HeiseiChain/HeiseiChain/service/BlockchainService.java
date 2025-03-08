@@ -24,7 +24,7 @@ public class BlockchainService {
         return blockchain.displayHTML(walletDatabase);
     }
 
-    public String getReport(LocalDateTime startDateTime, LocalDateTime endDateTime) { return blockchain.generateCSVReport(walletDatabase,startDateTime,endDateTime);}
+    public String getReport(LocalDateTime startDateTime, LocalDateTime endDateTime) { return blockchain.generateCSVReport(walletDatabase,pendingTransactions,startDateTime,endDateTime);}
 
     public void addTransaction(Transaction transaction) {
         blockchain.addTransaction(transaction);
