@@ -28,7 +28,7 @@ public class Block {
     }
 
     public String getFormattedTimestamp() {
-        return new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date(timestamp));
+        return new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date(timestamp+ (5 * 60 + 30) * 60 * 1000));
     }
 
     // Getters and Setters

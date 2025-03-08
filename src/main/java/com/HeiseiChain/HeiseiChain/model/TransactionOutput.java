@@ -3,6 +3,7 @@ package com.HeiseiChain.HeiseiChain.model;
 import com.HeiseiChain.HeiseiChain.util.StringUtil;
 
 import java.security.PublicKey;
+import java.util.Date;
 
 public class TransactionOutput {
     public String id; // Unique identifier for this output
@@ -10,6 +11,7 @@ public class TransactionOutput {
     public float value; // Amount of money or value being transferred
     public String parentTransactionId; // The ID of the transaction where this output was created
     public String commodity;
+    public long date;
 
     // Constructor for creating a new TransactionOutput
     public TransactionOutput(PublicKey recipient, float value, String parentTransactionId, String commodity) {
@@ -17,6 +19,7 @@ public class TransactionOutput {
         this.value = value;
         this.parentTransactionId = parentTransactionId;
         this.commodity = commodity;
+        this.date = System.currentTimeMillis();
         this.id = StringUtil.applySha256(
                 StringUtil.getStringFromKey(recipient) + Float.toString(value) + parentTransactionId + commodity
         );
