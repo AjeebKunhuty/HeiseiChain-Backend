@@ -11,7 +11,7 @@ public class Block {
     public Block(List<Transaction> transactions, String previousHash) {
         this.transactions = transactions;
         this.previousHash = previousHash;
-        this.timestamp = System.currentTimeMillis();
+        this.timestamp = System.currentTimeMillis()+ (5 * 60 + 30) * 60 * 1000;
         this.hash = calculateHash();
     }
 
@@ -28,7 +28,7 @@ public class Block {
     }
 
     public String getFormattedTimestamp() {
-        return new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date(timestamp+ (5 * 60 + 30) * 60 * 1000));
+        return new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date(timestamp));
     }
 
     // Getters and Setters

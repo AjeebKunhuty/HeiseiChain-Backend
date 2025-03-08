@@ -110,7 +110,7 @@ public class Blockchain {
         return "Unknown User";
     }
 
-    public String generateCSVReport(Map<String, Wallet> walletDatabase, LocalDateTime startDateTime, LocalDateTime endDateTime) {
+    public String generateCSVReport(Map<String, Wallet> walletDatabase, Map<String, Transaction> pendingTransactions, LocalDateTime startDateTime, LocalDateTime endDateTime) {
         StringBuilder csvData = new StringBuilder();
 
         // Adding CSV headers
@@ -173,6 +173,24 @@ public class Blockchain {
             // Add block data to CSV
         }
 
+        // **Adding a separator for Pending Transactions**
+        csvData.append("\nUnconfirmed Transactions Table:\n");
+        csvData.append("Number,Sender,Recipient,Commodity,Quantity,Time\n");
+
+        int count = 0;
+        // **Appending pending transactions**
+        for (Map.Entry<String, Transaction> entry : pendingTransactions.entrySet()) {
+            Transaction pendingTx = entry.getValue();
+            csvData.append(++count).append(",")  // Transaction Number (Key)
+                    .append(findUserByPublicKey(pendingTx.getSender(), walletDatabase)).append(",")
+                    .append(findUserByPublicKey(pendingTx.getRecipient(), walletDatabase)).append(",")
+                    .append(pendingTx.getMetadata()).append(",")
+                    .append(pendingTx.getValue()).append(",")
+                    .append(new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date(pendingTx.creationTime)))
+                    .append("\n");
+        }
+
         return csvData.toString();
     }
+
 }
