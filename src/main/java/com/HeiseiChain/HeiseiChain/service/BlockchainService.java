@@ -128,7 +128,23 @@ public class BlockchainService {
         return html.toString();
     }
 
-    public String displayHistory() {
-        return "";
+    public float displayPercentage() {
+        float volunteerStocks = 0.0f;
+        float campStocks = 0.0f;
+        for (String w : walletDatabase.keySet()) {
+            Wallet user = walletDatabase.get(w);
+            if (user.role.equals("volunteer")) {
+                for (Map.Entry<String, Float> entry : user.getCommodityQuantities().entrySet()) {
+                    volunteerStocks += entry.getValue();
+                }
+            }
+
+            if (user.role.equals("camp")) {
+                for (Map.Entry<String, Float> entry : user.getCommodityQuantities().entrySet()) {
+                    campStocks += entry.getValue();
+                }
+            }
+        }
+        return volunteerStocks / (volunteerStocks + campStocks);
     }
 }

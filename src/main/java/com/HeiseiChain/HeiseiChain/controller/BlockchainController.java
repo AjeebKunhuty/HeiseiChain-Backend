@@ -187,8 +187,8 @@ public class BlockchainController {
         return blockchainService.displayWallets();
     }
 
-    @GetMapping("/history")
-    public String displayHistory(){
-        return blockchainService.displayHistory();
+    @GetMapping("/donationPercentage")
+    public float displayPercentage(){
+        return blockchainService.displayPercentage();
     }
 }
