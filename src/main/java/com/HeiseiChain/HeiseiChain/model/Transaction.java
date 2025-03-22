@@ -5,6 +5,8 @@ import com.HeiseiChain.HeiseiChain.util.StringUtil;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 
 public class Transaction {
 
@@ -96,10 +98,10 @@ public class Transaction {
     }
 
     // Processes the transaction (checks validity, applies changes to the blockchain)
-    public boolean processTransaction() {
+    public Set<PublicKey> processTransaction() {
         if (!verifySignature()) {
             System.out.println("# Transaction Signature failed to verify");
-            return false;
+            return null;
         }
 
         // Process inputs (check if unspent)
@@ -110,14 +112,27 @@ public class Transaction {
         // Check if transaction is valid (e.g., enough balance)
         if (getInputsValue() < HeiseiChain.minimumTransaction) {
             System.out.println("# Transaction Inputs too small: " + getInputsValue());
-            return false;
+            return null;
+        }
+
+        // Track all unique donors from inputs
+        Set<PublicKey> donors = new HashSet<>();
+        for (TransactionInput i : inputs) {
+            if (i.UTXO != null && i.UTXO.donor != null) {
+                donors.addAll(i.UTXO.donor);
+            }
+        }
+
+        // If no previous donors exist (i.e., direct donation), set sender as the only donor
+        if (donors.isEmpty()) {
+            donors.add(this.sender);
         }
 
         // Generate outputs (donation or volunteer service)
         float leftover = getInputsValue() - value; // Calculate leftover change after transaction
-        outputs.add(new TransactionOutput(this.recipient, value, transactionId,metadata)); // Send value to recipient
+        outputs.add(new TransactionOutput(this.recipient, value, transactionId,metadata,donors)); // Send value to recipient
         if (leftover > 0) {
-            outputs.add(new TransactionOutput(this.sender, leftover, transactionId,metadata)); // Return leftover change to sender
+            outputs.add(new TransactionOutput(this.sender, leftover, transactionId,metadata,donors)); // Return leftover change to sender
         }
 
         // Add outputs to UTXO list
@@ -131,7 +146,7 @@ public class Transaction {
             HeiseiChain.UTXOs.remove(i.UTXO.id);
         }
 
-        return true;
+        return donors;
     }
 
     // Returns the sum of input values

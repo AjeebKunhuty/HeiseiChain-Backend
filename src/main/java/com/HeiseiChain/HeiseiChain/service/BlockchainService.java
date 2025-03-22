@@ -4,9 +4,7 @@ import com.HeiseiChain.HeiseiChain.model.*;
 import org.springframework.stereotype.Service;
 
 import java.security.PublicKey;
-import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.*;
 
 @Service
@@ -26,8 +24,17 @@ public class BlockchainService {
 
     public String getReport(LocalDateTime startDateTime, LocalDateTime endDateTime) { return blockchain.generateCSVReport(walletDatabase,pendingTransactions,startDateTime,endDateTime);}
 
-    public void addTransaction(Transaction transaction) {
+    public String addTransaction(Transaction transaction, Set<PublicKey> donor) {
         blockchain.addTransaction(transaction);
+        String donorName = null;
+        if(walletDatabase.get(blockchain.findUserByPublicKey(transaction.recipient,walletDatabase)).role.equals("camp")){
+            for (PublicKey i : donor)
+                if (donorName != null)
+                    donorName +=  " "+blockchain.findUserByPublicKey(i,walletDatabase);
+                else
+                    donorName = blockchain.findUserByPublicKey(i,walletDatabase);
+        }
+        return donorName;
     }
 
     public boolean isChainValid() {
@@ -79,6 +86,10 @@ public class BlockchainService {
         return null;
     }
 
+    public void reinsertTransaction(String transactionID, Transaction transaction){
+        pendingTransactions.put(transactionID, transaction);
+    }
+
     public String displayWallets() {
         StringBuilder html = new StringBuilder();
 
@@ -117,4 +128,7 @@ public class BlockchainService {
         return html.toString();
     }
 
+    public String displayHistory() {
+        return "";
+    }
 }
