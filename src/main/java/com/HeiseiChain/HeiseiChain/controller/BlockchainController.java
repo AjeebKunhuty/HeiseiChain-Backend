@@ -2,6 +2,7 @@ package com.HeiseiChain.HeiseiChain.controller;
 
 import com.HeiseiChain.HeiseiChain.model.*;
 import com.HeiseiChain.HeiseiChain.service.BlockchainService;
+import com.HeiseiChain.HeiseiChain.util.RSADecryptionUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
@@ -47,10 +48,11 @@ public class BlockchainController {
     public String registerUser(
             @RequestParam String username,
             @RequestParam String role) {
-
+        try{
+            username = RSADecryptionUtil.decryptData(username);
+            role = RSADecryptionUtil.decryptData(role);
             if (blockchainService.getWalletByUsername(username) != null)
                 return "Username already in use";
-            try {
                 Wallet newWallet = blockchainService.createWallet(role);
                 // Check if the public key was generated properly
                 if (newWallet.publicKey == null) {
@@ -90,10 +92,20 @@ public class BlockchainController {
     public String creationTransaction(
             @RequestParam String senderUsername,
             @RequestParam String recipientUsername,
-            @RequestParam float value,
+            @RequestParam String value,
             @RequestParam String transactionType,
             @RequestParam String commodity) {
         try {
+            senderUsername = RSADecryptionUtil.decryptData(senderUsername);
+            recipientUsername = RSADecryptionUtil.decryptData(recipientUsername);
+            value = RSADecryptionUtil.decryptData(value);
+            transactionType = RSADecryptionUtil.decryptData(transactionType);
+            commodity = RSADecryptionUtil.decryptData(commodity);
+
+            // Convert value to float after decryption
+            float decryptedValue = Float.parseFloat(value);
+
+
             // Step 1: Fetch the sender's public key
             PublicKey senderPublicKey = blockchainService.getPublicKeyByUsername(senderUsername);
             if (senderPublicKey == null) {
@@ -131,13 +143,13 @@ public class BlockchainController {
                 for (UTXO utxo : availableUTXOs) {
                     inputs.add(new TransactionInput(utxo.getId()));
                     totalInputValue += utxo.getValue();
-                    if (totalInputValue >= value) {
+                    if (totalInputValue >= decryptedValue) {
                         break;
                     }
                 }
 
                 // Check if the sender has sufficient funds
-                if (totalInputValue < value) {
+                if (totalInputValue < decryptedValue) {
                     return String.format(
                             "Error: Insufficient funds for sender '%s'. Available: %.2f, Required: %.2f.",
                             senderUsername, totalInputValue, value
@@ -147,7 +159,7 @@ public class BlockchainController {
             }
 
             // Step 5: Create the transaction
-            String transactionID = blockchainService.createTransactionRequest(senderPublicKey, recipientPublicKey, commodity, value, inputs);
+            String transactionID = blockchainService.createTransactionRequest(senderPublicKey, recipientPublicKey, commodity, decryptedValue, inputs);
             return transactionID;
         } catch (Exception e) {
             return "Error creating transaction: " + e.getMessage();
