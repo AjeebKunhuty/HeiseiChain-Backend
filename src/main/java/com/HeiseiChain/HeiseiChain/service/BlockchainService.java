@@ -27,7 +27,7 @@ public class BlockchainService {
     public String addTransaction(Transaction transaction, Map<PublicKey,Float> donor) {
         blockchain.addTransaction(transaction);
         String donorName = null;
-        if(walletDatabase.get(blockchain.findUserByPublicKey(transaction.recipient,walletDatabase)).role.equals("camp")){
+        if(walletDatabase.get(blockchain.findUserByPublicKey(transaction.recipient,walletDatabase)).role.equals("campcoordinator")){
             for (PublicKey i : donor.keySet())
                 if (donorName != null)
                     donorName +=  " " + blockchain.findUserByPublicKey(i,walletDatabase) + " " + donor.get(i);
@@ -139,7 +139,7 @@ public class BlockchainService {
                 }
             }
 
-            if (user.role.equals("camp")) {
+            if (user.role.equals("campcoordinator")) {
                 for (Map.Entry<String, Float> entry : user.getCommodityQuantities().entrySet()) {
                     campStocks += entry.getValue();
                 }
