@@ -10,7 +10,7 @@ import java.util.Base64;
 
 public class RSADecryptionUtil {
 
-    private static final String PRIVATE_KEY_PATH = "src/main/resources/security/heisei-key";
+    private static final String PRIVATE_KEY_PATH = "src/main/resources/security/private.key";
     private static PrivateKey privateKey;
 
     static {
