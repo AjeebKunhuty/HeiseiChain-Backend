@@ -1,6 +1,7 @@
 package com.HeiseiChain.HeiseiChain.util;
 
 import javax.crypto.Cipher;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.KeyFactory;
@@ -15,6 +16,10 @@ public class RSADecryptionUtil {
 
     static {
         try {
+            InputStream keyStream = RSADecryptionUtil.class.getResourceAsStream(PRIVATE_KEY_PATH);
+            if (keyStream == null) {
+                throw new RuntimeException("Private key file not found: " + PRIVATE_KEY_PATH);
+            }
             byte[] keyBytes = Files.readAllBytes(Paths.get(PRIVATE_KEY_PATH));
             String privateKeyPEM = new String(keyBytes)
                     .replace("-----BEGIN PRIVATE KEY-----", "")
