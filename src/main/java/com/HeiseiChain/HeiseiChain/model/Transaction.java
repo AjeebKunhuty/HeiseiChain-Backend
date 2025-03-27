@@ -117,8 +117,9 @@ public class Transaction {
         Map<PublicKey,Float> donors = new HashMap<>();
         for (TransactionInput i : inputs) {
             if (i.UTXO != null && i.UTXO.donor != null) {
-                for(PublicKey j : i.UTXO.donor.keySet())
-                    donors.put(j,i.UTXO.value);
+                for (Map.Entry<PublicKey, Float> entry : i.UTXO.donor.entrySet()) {
+                    donors.put(entry.getKey(), donors.getOrDefault(entry.getKey(), 0.0f) + entry.getValue());
+                }
             }
         }
 
