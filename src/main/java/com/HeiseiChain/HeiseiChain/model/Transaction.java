@@ -4,9 +4,7 @@ import com.HeiseiChain.HeiseiChain.util.StringUtil;
 
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 public class Transaction {
 
@@ -98,7 +96,7 @@ public class Transaction {
     }
 
     // Processes the transaction (checks validity, applies changes to the blockchain)
-    public Set<PublicKey> processTransaction() {
+    public Map<PublicKey,Float> processTransaction() {
         if (!verifySignature()) {
             System.out.println("# Transaction Signature failed to verify");
             return null;
@@ -116,21 +114,41 @@ public class Transaction {
         }
 
         // Track all unique donors from inputs
-        Set<PublicKey> donors = new HashSet<>();
+        Map<PublicKey,Float> donors = new HashMap<>();
         for (TransactionInput i : inputs) {
             if (i.UTXO != null && i.UTXO.donor != null) {
-                donors.addAll(i.UTXO.donor);
+                for(PublicKey j : i.UTXO.donor.keySet())
+                    donors.put(j,i.UTXO.value);
             }
         }
 
         // If no previous donors exist (i.e., direct donation), set sender as the only donor
         if (donors.isEmpty()) {
-            donors.add(this.sender);
+            donors.put(this.sender,value);
+        }
+
+        // **Deduct the used amount from donor contributions**
+        float remaining = value;
+        Map<PublicKey, Float> usedContributions = new LinkedHashMap<>();
+
+        for(Iterator<Map.Entry<PublicKey, Float>> it = donors.entrySet().iterator(); it.hasNext(); ) {
+            Map.Entry<PublicKey, Float> entry = it.next();
+            PublicKey donor = entry.getKey();
+            float available = entry.getValue();
+
+            if (remaining > 0) {
+                float used = Math.min(available, remaining); // Take what is needed
+                usedContributions.put(donor, used);
+                remaining -= used;
+            } else {
+                break; // No more needed
+            }
         }
 
         // Generate outputs (donation or volunteer service)
-        float leftover = getInputsValue() - value; // Calculate leftover change after transaction
-        outputs.add(new TransactionOutput(this.recipient, value, transactionId,metadata,donors)); // Send value to recipient
+        float available = getInputsValue();
+        float leftover = available - value; // Calculate leftover change after transaction
+        outputs.add(new TransactionOutput(this.recipient, value, transactionId,metadata,usedContributions)); // Send value to recipient
         if (leftover > 0) {
             outputs.add(new TransactionOutput(this.sender, leftover, transactionId,metadata,donors)); // Return leftover change to sender
         }
@@ -146,7 +164,7 @@ public class Transaction {
             HeiseiChain.UTXOs.remove(i.UTXO.id);
         }
 
-        return donors;
+        return usedContributions;
     }
 
     // Returns the sum of input values

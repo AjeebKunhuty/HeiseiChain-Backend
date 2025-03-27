@@ -15,6 +15,7 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @CrossOrigin(origins = "*")
@@ -164,7 +165,7 @@ public class BlockchainController {
             transaction.generateSignature(senderWallet.privateKey);
 
             // Step 7: Process the transaction
-            Set<PublicKey> donor = transaction.processTransaction();
+            Map<PublicKey,Float> donor = transaction.processTransaction();
             //System.out.println(success);
             if (donor != null) {
                 String endPoint = blockchainService.addTransaction(transaction,donor);

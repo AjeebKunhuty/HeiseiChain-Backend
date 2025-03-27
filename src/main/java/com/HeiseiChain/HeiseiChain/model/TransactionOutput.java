@@ -4,6 +4,7 @@ import com.HeiseiChain.HeiseiChain.util.StringUtil;
 
 import java.security.PublicKey;
 import java.util.Date;
+import java.util.Map;
 import java.util.Set;
 
 public class TransactionOutput {
@@ -13,10 +14,10 @@ public class TransactionOutput {
     public String parentTransactionId; // The ID of the transaction where this output was created
     public String commodity;
     public long date;
-    public Set<PublicKey> donor;
+    public Map<PublicKey,Float> donor;
 
     // Constructor for creating a new TransactionOutput
-    public TransactionOutput(PublicKey recipient, float value, String parentTransactionId, String commodity,Set<PublicKey> donor) {
+    public TransactionOutput(PublicKey recipient, float value, String parentTransactionId, String commodity,Map<PublicKey,Float> donor) {
         this.recipient = recipient;
         this.value = value;
         this.parentTransactionId = parentTransactionId;

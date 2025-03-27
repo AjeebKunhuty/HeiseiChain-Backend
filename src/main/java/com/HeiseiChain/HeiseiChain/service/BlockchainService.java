@@ -24,15 +24,15 @@ public class BlockchainService {
 
     public String getReport(LocalDateTime startDateTime, LocalDateTime endDateTime) { return blockchain.generateCSVReport(walletDatabase,pendingTransactions,startDateTime,endDateTime);}
 
-    public String addTransaction(Transaction transaction, Set<PublicKey> donor) {
+    public String addTransaction(Transaction transaction, Map<PublicKey,Float> donor) {
         blockchain.addTransaction(transaction);
         String donorName = null;
         if(walletDatabase.get(blockchain.findUserByPublicKey(transaction.recipient,walletDatabase)).role.equals("camp")){
-            for (PublicKey i : donor)
+            for (PublicKey i : donor.keySet())
                 if (donorName != null)
-                    donorName +=  " "+blockchain.findUserByPublicKey(i,walletDatabase);
+                    donorName +=  " " + blockchain.findUserByPublicKey(i,walletDatabase) + " " + donor.get(i);
                 else
-                    donorName = blockchain.findUserByPublicKey(i,walletDatabase);
+                    donorName = " " + transaction.metadata + " " + blockchain.findUserByPublicKey(i,walletDatabase) + " " + donor.get(i);
         }
         return donorName;
     }
