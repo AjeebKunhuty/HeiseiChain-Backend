@@ -7,6 +7,9 @@ public class HeiseiChain {
     public static Map<String, TransactionOutput> UTXOs = new HashMap<>();  // Unspent Transaction Outputs
     public static float minimumTransaction = 0.1f;
 
+    public static Set<String> pendingUTXOs = Collections.synchronizedSet(new HashSet<>());
+
+
     // This method adds an output to the UTXO set
     public static void addUTXO(TransactionOutput output) {
         UTXOs.put(output.id, output);

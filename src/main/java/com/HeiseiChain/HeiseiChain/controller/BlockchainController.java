@@ -172,10 +172,50 @@ public class BlockchainController {
     public String confirmTransaction(
             @RequestParam String senderUsername,
             @RequestParam String transactionID) {
-        Transaction transaction = blockchainService.confirmTransaction(transactionID);
+
+        Object[] transactionIN = blockchainService.retreiveTransactionInputs(transactionID);
+        ArrayList<TransactionInput> inputs = new ArrayList<>();
+
+        Wallet senderWallet = blockchainService.getWalletByUsername(senderUsername);
+        // Skip UTXO checks if the metadata is "donation"
+        if (!senderWallet.role.equals("donor")) {
+            // Fetch UTXOs (unspent transaction outputs) for the sender
+            List<UTXO> availableUTXOs = senderWallet.getUTXOs((String) transactionIN[4]);
+            if (availableUTXOs == null || availableUTXOs.isEmpty()) {
+                return "Error: No UTXOs available for sender '" + senderUsername + "'!";
+            }
+
+            float value = (Float) transactionIN[3];
+            // Prepare inputs for the transaction
+            float totalInputValue = 0;
+            for (UTXO utxo : availableUTXOs) {
+                inputs.add(new TransactionInput(utxo.getId()));
+                totalInputValue += utxo.getValue();
+                if (totalInputValue >= value) {
+                    break;
+                }
+            }
+
+            // Check if the sender has sufficient funds
+            if (totalInputValue < value) {
+                return String.format(
+                        "Error: Insufficient funds for sender '%s'. Available: %.2f, Required: %.2f.",
+                        senderUsername, totalInputValue, value
+                );
+            }
+
+        }
+        Transaction transaction = new Transaction((PublicKey) transactionIN[0],
+                (PublicKey) transactionIN[1],
+                (String) transactionIN[2],
+                (Float) transactionIN[3],
+                (String) transactionIN[4],
+                inputs,
+                (Long) transactionIN[6]);
+
         try{
+
             // Step 6: Generate the transaction's signature using the sender's private key
-            Wallet senderWallet = blockchainService.getWalletByUsername(senderUsername);
             transaction.generateSignature(senderWallet.privateKey);
 
             // Step 7: Process the transaction
@@ -192,7 +232,7 @@ public class BlockchainController {
             }
         } catch (Exception e) {
             if(transaction != null)
-                blockchainService.reinsertTransaction(transactionID, transaction);
+                blockchainService.reinsertTransaction(transactionID, new Object[]{transaction.sender, transaction.recipient, transaction.transactionId, transaction.value, transaction.metadata,transaction.inputs});
             return "Error creating transaction: " + e.getMessage();
         }
     }

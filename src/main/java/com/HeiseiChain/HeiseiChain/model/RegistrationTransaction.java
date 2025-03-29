@@ -7,7 +7,7 @@ public class RegistrationTransaction extends Transaction {
     private final String address;
 
     public RegistrationTransaction(PublicKey userPublicKey, String username) {
-        super(userPublicKey, userPublicKey, "registration", 0, "User Registration of "+username, new ArrayList<>());
+        super(userPublicKey, userPublicKey, "registration", 0, "User Registration of "+username, new ArrayList<>(),System.currentTimeMillis()+ (5 * 60 + 30) * 60 * 1000);
         this.address = userPublicKey.toString();
     }
 

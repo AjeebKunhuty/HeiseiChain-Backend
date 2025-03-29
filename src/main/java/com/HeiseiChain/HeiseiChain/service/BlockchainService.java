@@ -12,7 +12,7 @@ public class BlockchainService {
 
     private final Blockchain blockchain;
     private Map<String, Wallet> walletDatabase = new HashMap<>();
-    private final Map<String, Transaction> pendingTransactions = new HashMap<>();
+    private final Map<String, Object[]> pendingTransactions = new HashMap<>();
 
     public BlockchainService() {
         this.blockchain = new Blockchain();
@@ -74,19 +74,19 @@ public class BlockchainService {
 
     public String createTransactionRequest(PublicKey senderId, PublicKey recipientId, String commodity, float quantity, ArrayList<TransactionInput>inputs) {
         String transactionId = UUID.randomUUID().toString(); // Generate unique ID
-        Transaction transaction = new Transaction(senderId, recipientId, transactionId, quantity, commodity,inputs);
-        pendingTransactions.put(transactionId, transaction);
+        pendingTransactions.put(transactionId, new Object[]{senderId, recipientId, "Donation", quantity, commodity,inputs, System.currentTimeMillis()+ (5 * 60 + 30) * 60 * 1000} );
         return transactionId;
     }
 
-    public Transaction confirmTransaction(String transactionId) {
+    public Object[] retreiveTransactionInputs(String transactionId){
         if (pendingTransactions.containsKey(transactionId)) {
             return pendingTransactions.remove(transactionId);
         }
         return null;
     }
 
-    public void reinsertTransaction(String transactionID, Transaction transaction){
+
+    public void reinsertTransaction(String transactionID, Object[] transaction){
         pendingTransactions.put(transactionID, transaction);
     }
 

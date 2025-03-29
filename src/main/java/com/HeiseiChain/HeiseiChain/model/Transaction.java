@@ -23,7 +23,7 @@ public class Transaction {
     private static int sequence = 0; // A rough count of how many transactions have been generated.
 
     // Constructor: Initializes a new transaction with the given parameters.
-    public Transaction(PublicKey from, PublicKey to, String transactionType, float value, String metadata, ArrayList<TransactionInput> inputs) {
+    public Transaction(PublicKey from, PublicKey to, String transactionType, float value, String metadata, ArrayList<TransactionInput> inputs, long creationTime) {
         this.sender = from;
         this.recipient = to;
         this.transactionType = transactionType;
@@ -32,7 +32,7 @@ public class Transaction {
         this.inputs = inputs;
         this.outputs = new ArrayList<>();
         this.transactionId = calculateTransactionId();  // Ensure ID is calculated correctly here
-        this.creationTime = System.currentTimeMillis()+ (5 * 60 + 30) * 60 * 1000;
+        this.creationTime = creationTime;
     }
 
     // Calculates the unique transaction ID based on transaction details (sender, recipient, value, metadata, inputs, outputs)
@@ -96,25 +96,38 @@ public class Transaction {
     }
 
     // Processes the transaction (checks validity, applies changes to the blockchain)
-    public Map<PublicKey,Float> processTransaction() {
+    public synchronized Map<PublicKey, Float> processTransaction() {
         if (!verifySignature()) {
             System.out.println("# Transaction Signature failed to verify");
             return null;
         }
 
-        // Process inputs (check if unspent)
+        // 🔹 Step 1: Check if UTXOs are already being used in another transaction
         for (TransactionInput i : inputs) {
-            i.UTXO = HeiseiChain.UTXOs.get(i.transactionOutputId);  // Get the UTXO for each input
+            if (HeiseiChain.pendingUTXOs.contains(i.transactionOutputId)) {
+                System.out.println("# UTXO is pending in another transaction, retrying...");
+                waitForUTXOs();
+            }
         }
 
-        // Check if transaction is valid (e.g., enough balance)
+        // 🔹 Step 2: Lock UTXOs for this transaction
+        for (TransactionInput i : inputs) {
+            HeiseiChain.pendingUTXOs.add(i.transactionOutputId);
+        }
+
+        // 🔹 Step 3: Retrieve UTXOs and validate the transaction
+        for (TransactionInput i : inputs) {
+            i.UTXO = HeiseiChain.UTXOs.get(i.transactionOutputId);
+        }
+
         if (getInputsValue() < HeiseiChain.minimumTransaction) {
             System.out.println("# Transaction Inputs too small: " + getInputsValue());
+            releaseUTXOs();
             return null;
         }
 
-        // Track all unique donors from inputs
-        Map<PublicKey,Float> donors = new HashMap<>();
+        // 🔹 Step 4: Process the transaction (same as before)
+        Map<PublicKey, Float> donors = new HashMap<>();
         for (TransactionInput i : inputs) {
             if (i.UTXO != null && i.UTXO.donor != null) {
                 for (Map.Entry<PublicKey, Float> entry : i.UTXO.donor.entrySet()) {
@@ -123,50 +136,64 @@ public class Transaction {
             }
         }
 
-        // If no previous donors exist (i.e., direct donation), set sender as the only donor
         if (donors.isEmpty()) {
-            donors.put(this.sender,value);
+            donors.put(this.sender, value);
         }
 
-        // **Deduct the used amount from donor contributions**
         float remaining = value;
         Map<PublicKey, Float> usedContributions = new LinkedHashMap<>();
-
-        for(Iterator<Map.Entry<PublicKey, Float>> it = donors.entrySet().iterator(); it.hasNext(); ) {
+        for (Iterator<Map.Entry<PublicKey, Float>> it = donors.entrySet().iterator(); it.hasNext(); ) {
             Map.Entry<PublicKey, Float> entry = it.next();
             PublicKey donor = entry.getKey();
             float available = entry.getValue();
 
             if (remaining > 0) {
-                float used = Math.min(available, remaining); // Take what is needed
+                float used = Math.min(available, remaining);
                 usedContributions.put(donor, used);
                 remaining -= used;
             } else {
-                break; // No more needed
+                break;
             }
         }
 
-        // Generate outputs (donation or volunteer service)
         float available = getInputsValue();
-        float leftover = available - value; // Calculate leftover change after transaction
-        outputs.add(new TransactionOutput(this.recipient, value, transactionId,metadata,usedContributions)); // Send value to recipient
+        float leftover = available - value;
+        outputs.add(new TransactionOutput(this.recipient, value, transactionId, metadata, usedContributions));
         if (leftover > 0) {
-            outputs.add(new TransactionOutput(this.sender, leftover, transactionId,metadata,donors)); // Return leftover change to sender
+            outputs.add(new TransactionOutput(this.sender, leftover, transactionId, metadata, donors));
         }
 
-        // Add outputs to UTXO list
         for (TransactionOutput o : outputs) {
-            HeiseiChain.UTXOs.put(o.id, o);  // Update UTXOs map
+            HeiseiChain.UTXOs.put(o.id, o);
         }
 
-        // Remove spent inputs from UTXO list
         for (TransactionInput i : inputs) {
-            if (i.UTXO == null) continue; // Skip if UTXO is not found
+            if (i.UTXO == null) continue;
             HeiseiChain.UTXOs.remove(i.UTXO.id);
         }
 
+        // 🔹 Step 5: Release UTXOs after successful transaction
+        releaseUTXOs();
+
         return usedContributions;
     }
+
+    // 🔹 Helper method: Wait and retry if UTXOs are locked
+    private void waitForUTXOs() {
+        try {
+            Thread.sleep(100); // Small delay before retrying
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    // 🔹 Helper method: Release UTXOs after processing
+    private void releaseUTXOs() {
+        for (TransactionInput i : inputs) {
+            HeiseiChain.pendingUTXOs.remove(i.transactionOutputId);
+        }
+    }
+
 
     // Returns the sum of input values
     public float getInputsValue() {
