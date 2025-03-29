@@ -49,8 +49,9 @@ public class BlockchainController {
             @RequestParam String username,
             @RequestParam String role) {
         try{
-            username = RSADecryptionUtil.decryptData(username);
-            role = RSADecryptionUtil.decryptData(role);
+            //username = RSADecryptionUtil.decryptData(username);
+            //role = RSADecryptionUtil.decryptData(role);
+            //System.out.println(username +" "+ role);
             if (blockchainService.getWalletByUsername(username) != null)
                 return "Username already in use";
                 Wallet newWallet = blockchainService.createWallet(role);
@@ -92,10 +93,11 @@ public class BlockchainController {
     public String creationTransaction(
             @RequestParam String senderUsername,
             @RequestParam String recipientUsername,
-            @RequestParam String value,
+            @RequestParam Float value,
             @RequestParam String transactionType,
             @RequestParam String commodity) {
         try {
+            /**
             senderUsername = RSADecryptionUtil.decryptData(senderUsername);
             recipientUsername = RSADecryptionUtil.decryptData(recipientUsername);
             value = RSADecryptionUtil.decryptData(value);
@@ -104,7 +106,7 @@ public class BlockchainController {
 
             // Convert value to float after decryption
             float decryptedValue = Float.parseFloat(value);
-
+            **/
 
             // Step 1: Fetch the sender's public key
             PublicKey senderPublicKey = blockchainService.getPublicKeyByUsername(senderUsername);
@@ -143,13 +145,13 @@ public class BlockchainController {
                 for (UTXO utxo : availableUTXOs) {
                     inputs.add(new TransactionInput(utxo.getId()));
                     totalInputValue += utxo.getValue();
-                    if (totalInputValue >= decryptedValue) {
+                    if (totalInputValue >= value) {
                         break;
                     }
                 }
 
                 // Check if the sender has sufficient funds
-                if (totalInputValue < decryptedValue) {
+                if (totalInputValue < value) {
                     return String.format(
                             "Error: Insufficient funds for sender '%s'. Available: %.2f, Required: %.2f.",
                             senderUsername, totalInputValue, value
@@ -159,7 +161,7 @@ public class BlockchainController {
             }
 
             // Step 5: Create the transaction
-            String transactionID = blockchainService.createTransactionRequest(senderPublicKey, recipientPublicKey, commodity, decryptedValue, inputs);
+            String transactionID = blockchainService.createTransactionRequest(senderPublicKey, recipientPublicKey, commodity, value, inputs);
             return transactionID;
         } catch (Exception e) {
             return "Error creating transaction: " + e.getMessage();
