@@ -3,6 +3,7 @@ package com.HeiseiChain.HeiseiChain.controller;
 import com.HeiseiChain.HeiseiChain.model.*;
 import com.HeiseiChain.HeiseiChain.service.BlockchainService;
 import com.HeiseiChain.HeiseiChain.util.RSADecryptionUtil;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
@@ -10,14 +11,25 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.json.JSONObject;
 
+
+import javax.crypto.Cipher;
+import javax.crypto.spec.OAEPParameterSpec;
+import javax.crypto.spec.PSource;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.security.KeyFactory;
+import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.Signature;
+import java.security.spec.MGF1ParameterSpec;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 @CrossOrigin(origins = "*")
 @RestController
@@ -28,6 +40,21 @@ public class BlockchainController {
     public BlockchainController(BlockchainService blockchainService) {
         this.blockchainService = blockchainService; // Spring calls the constructor and injects this instance
     }
+
+    // Load Private Key for Decryption
+    private PrivateKey loadPrivateKey() throws Exception {
+        byte[] keyBytes = Base64.getDecoder().decode(Files.readAllBytes(Paths.get("java_private.pem")));
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        return keyFactory.generatePrivate(new PKCS8EncodedKeySpec(keyBytes));
+    }
+
+    // Load Web App's Public Key for Signature Verification
+    private PublicKey loadWebAppPublicKey() throws Exception {
+        byte[] keyBytes = Base64.getDecoder().decode(Files.readAllBytes(Paths.get("webapp_public.pem")));
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        return keyFactory.generatePublic(new X509EncodedKeySpec(keyBytes));
+    }
+
 
     @GetMapping("/display")
     public String getBlockchain() {
@@ -46,25 +73,73 @@ public class BlockchainController {
 
     @PostMapping("/register")
     public String registerUser(
-            @RequestParam String username,
-            @RequestParam String role) {
+            @RequestBody SecureData requestData) {
         try{
             //username = RSADecryptionUtil.decryptData(username);
             //role = RSADecryptionUtil.decryptData(role);
             //System.out.println(username +" "+ role);
-            if (blockchainService.getWalletByUsername(username) != null)
-                return "Username already in use";
-                Wallet newWallet = blockchainService.createWallet(role);
-                // Check if the public key was generated properly
-                if (newWallet.publicKey == null) {
-                    return "Error: Public key generation failed!";
-                }
-                blockchainService.registerUser(newWallet, username);
+            // Verify Signature
+            if (!verifySignature(requestData.encryptedData, requestData.signature)) {
+                return "Invalid Signature!";
+            }
+
+            // Decrypt Data
+            String decryptedJson = decryptData(requestData.encryptedData);
+            JSONObject jsonObject = new JSONObject(decryptedJson);
+            String username = jsonObject.getString("username");
+            String role = jsonObject.getString("role");
+
+                if (blockchainService.getWalletByUsername(username) != null)
+                    return "Username already in use";
+                    Wallet newWallet = blockchainService.createWallet(role);
+                    // Check if the public key was generated properly
+                    if (newWallet.publicKey == null) {
+                        return "Error: Public key generation failed!";
+                    }
+                    blockchainService.registerUser(newWallet, username);
 
                 return "User registered successfully!";
+
             } catch (Exception e) {
                 return "Error registering user: " + e.getMessage();
             }
+    }
+
+    public static String decryptData(String encryptedData) throws Exception {
+        String privateKeyPEM = new String(Files.readAllBytes(Paths.get("java_private.pem")));
+        privateKeyPEM = privateKeyPEM.replace("-----BEGIN PRIVATE KEY-----", "")
+                .replace("-----END PRIVATE KEY-----", "")
+                .replaceAll("\\s", "");
+        byte[] keyBytes = Base64.getDecoder().decode(privateKeyPEM);
+        PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(keyBytes);
+        PrivateKey privateKey = KeyFactory.getInstance("RSA").generatePrivate(keySpec);
+
+        //Cipher cipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
+        //cipher.init(Cipher.DECRYPT_MODE, privateKey);
+
+        Cipher cipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
+        OAEPParameterSpec oaepParams = new OAEPParameterSpec(
+                "SHA-256", "MGF1", new MGF1ParameterSpec("SHA-256"), PSource.PSpecified.DEFAULT
+        );
+        cipher.init(Cipher.DECRYPT_MODE, privateKey, oaepParams);
+        byte[] decryptedBytes = cipher.doFinal(Base64.getDecoder().decode(encryptedData));
+        return new String(decryptedBytes, StandardCharsets.UTF_8);
+    }
+
+    public static boolean verifySignature(String data, String signature) throws Exception {
+        String publicKeyPEM = new String(Files.readAllBytes(Paths.get("webapp_public.pem")));
+        publicKeyPEM = publicKeyPEM.replace("-----BEGIN PUBLIC KEY-----", "")
+                .replace("-----END PUBLIC KEY-----", "")
+                .replaceAll("\\s", "");
+        byte[] keyBytes = Base64.getDecoder().decode(publicKeyPEM);
+        X509EncodedKeySpec keySpec = new X509EncodedKeySpec(keyBytes);
+        PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(keySpec);
+
+        Signature verifier = Signature.getInstance("SHA256withRSA");
+        verifier.initVerify(publicKey);
+        verifier.update(data.getBytes(StandardCharsets.UTF_8));
+        byte[] signatureBytes = Base64.getDecoder().decode(signature);
+        return verifier.verify(signatureBytes);
     }
 
     @PostMapping("/generateReport")
@@ -91,11 +166,7 @@ public class BlockchainController {
 
     @PostMapping("/creation")
     public String creationTransaction(
-            @RequestParam String senderUsername,
-            @RequestParam String recipientUsername,
-            @RequestParam Float value,
-            @RequestParam String transactionType,
-            @RequestParam String commodity) {
+            @RequestBody SecureData requestData) {
         try {
             /**
             senderUsername = RSADecryptionUtil.decryptData(senderUsername);
@@ -107,6 +178,20 @@ public class BlockchainController {
             // Convert value to float after decryption
             float decryptedValue = Float.parseFloat(value);
             **/
+
+            if (!verifySignature(requestData.encryptedData, requestData.signature)) {
+                return "Invalid Signature!";
+            }
+
+            // Decrypt Data
+            String decryptedJson = decryptData(requestData.encryptedData);
+            JSONObject jsonObject = new JSONObject(decryptedJson);
+            String senderUsername = jsonObject.getString("senderUsername");
+            String recipientUsername = jsonObject.getString("recipientUsername");
+            String encryptedValue = jsonObject.getString("value");
+            float value = Float.parseFloat(encryptedValue);
+            String transactionType = jsonObject.getString("transactionType");
+            String commodity = jsonObject.getString("commodity");
 
             // Step 1: Fetch the sender's public key
             PublicKey senderPublicKey = blockchainService.getPublicKeyByUsername(senderUsername);
@@ -169,73 +254,101 @@ public class BlockchainController {
     }
 
     @PostMapping("/confirm")
-    public String confirmTransaction(
-            @RequestParam String senderUsername,
-            @RequestParam String transactionID) {
+    public String confirmTransaction(@RequestBody SecureData requestData) {
+        Transaction transaction = null;
+        String transactionID = null;
 
-        Object[] transactionIN = blockchainService.retreiveTransactionInputs(transactionID);
-        ArrayList<TransactionInput> inputs = new ArrayList<>();
-
-        Wallet senderWallet = blockchainService.getWalletByUsername(senderUsername);
-        // Skip UTXO checks if the metadata is "donation"
-        if (!senderWallet.role.equals("donor")) {
-            // Fetch UTXOs (unspent transaction outputs) for the sender
-            List<UTXO> availableUTXOs = senderWallet.getUTXOs((String) transactionIN[4]);
-            if (availableUTXOs == null || availableUTXOs.isEmpty()) {
-                return "Error: No UTXOs available for sender '" + senderUsername + "'!";
+        try {
+            if (!verifySignature(requestData.encryptedData, requestData.signature)) {
+                return "Error: Invalid Signature!";
             }
 
-            float value = (Float) transactionIN[3];
-            // Prepare inputs for the transaction
-            float totalInputValue = 0;
-            for (UTXO utxo : availableUTXOs) {
-                inputs.add(new TransactionInput(utxo.getId()));
-                totalInputValue += utxo.getValue();
-                if (totalInputValue >= value) {
-                    break;
+            // Decrypt Data
+            String decryptedJson = decryptData(requestData.encryptedData);
+            JSONObject jsonObject = new JSONObject(decryptedJson);
+            String senderUsername = jsonObject.getString("senderUsername");
+            transactionID = jsonObject.getString("transactionID");
+
+            // Retrieve transaction inputs
+            Object[] transactionIN = blockchainService.retreiveTransactionInputs(transactionID);
+            if (transactionIN == null) {
+                return "Error: Transaction not found for ID " + transactionID;
+            }
+
+            ArrayList<TransactionInput> inputs = new ArrayList<>();
+            Wallet senderWallet = blockchainService.getWalletByUsername(senderUsername);
+
+            if (senderWallet == null) {
+                return "Error: Sender wallet not found!";
+            }
+
+            // Skip UTXO checks if the metadata is "donation"
+            if (!senderWallet.role.equals("donor")) {
+                List<UTXO> availableUTXOs = senderWallet.getUTXOs((String) transactionIN[4]);
+
+                if (availableUTXOs == null || availableUTXOs.isEmpty()) {
+                    return "Error: No UTXOs available for sender '" + senderUsername + "'!";
+                }
+
+                float value = (Float) transactionIN[3];
+                float totalInputValue = 0;
+
+                for (UTXO utxo : availableUTXOs) {
+                    inputs.add(new TransactionInput(utxo.getId()));
+                    totalInputValue += utxo.getValue();
+                    if (totalInputValue >= value) {
+                        break;
+                    }
+                }
+
+                if (totalInputValue < value) {
+                    return String.format(
+                            "Error: Insufficient funds for sender '%s'. Available: %.2f, Required: %.2f.",
+                            senderUsername, totalInputValue, value
+                    );
                 }
             }
 
-            // Check if the sender has sufficient funds
-            if (totalInputValue < value) {
-                return String.format(
-                        "Error: Insufficient funds for sender '%s'. Available: %.2f, Required: %.2f.",
-                        senderUsername, totalInputValue, value
-                );
-            }
+            // Create transaction object
+            transaction = new Transaction(
+                    (PublicKey) transactionIN[0],
+                    (PublicKey) transactionIN[1],
+                    (String) transactionIN[2],
+                    (Float) transactionIN[3],
+                    (String) transactionIN[4],
+                    inputs,
+                    (Long) transactionIN[6]
+            );
 
-        }
-        Transaction transaction = new Transaction((PublicKey) transactionIN[0],
-                (PublicKey) transactionIN[1],
-                (String) transactionIN[2],
-                (Float) transactionIN[3],
-                (String) transactionIN[4],
-                inputs,
-                (Long) transactionIN[6]);
-
-        try{
-
-            // Step 6: Generate the transaction's signature using the sender's private key
+            // Generate signature
             transaction.generateSignature(senderWallet.privateKey);
 
-            // Step 7: Process the transaction
-            Map<PublicKey,Float> donor = transaction.processTransaction();
-            //System.out.println(success);
+            // Process transaction
+            Map<PublicKey, Float> donor = transaction.processTransaction();
             if (donor != null) {
-                String endPoint = blockchainService.addTransaction(transaction,donor);
-                if(endPoint == null)
-                    return "Transaction created successfully! Transaction ID: " + transaction.getTransactionId();
-                else
-                    return "ACK "+endPoint;
+                String endPoint = blockchainService.addTransaction(transaction, donor);
+                return (endPoint == null)
+                        ? "Transaction created successfully! Transaction ID: " + transaction.getTransactionId()
+                        : "ACK " + endPoint;
             } else {
-                throw new Exception("Transaction failed during processing");
+                throw new Exception("Transaction failed during processing.");
             }
+
         } catch (Exception e) {
-            if(transaction != null)
-                blockchainService.reinsertTransaction(transactionID, new Object[]{transaction.sender, transaction.recipient, transaction.transactionId, transaction.value, transaction.metadata,transaction.inputs});
+            if (transaction != null && transactionID != null) {
+                blockchainService.reinsertTransaction(transactionID, new Object[]{
+                        transaction.sender,
+                        transaction.recipient,
+                        transaction.transactionId,
+                        transaction.value,
+                        transaction.metadata,
+                        transaction.inputs
+                });
+            }
             return "Error creating transaction: " + e.getMessage();
         }
     }
+
 
     @GetMapping("/displayWallet")
     public String displayWallet(){
@@ -246,4 +359,13 @@ public class BlockchainController {
     public float displayPercentage(){
         return blockchainService.displayPercentage();
     }
+
+
+    // DTO Class for Receiving Data
+    static class SecureData {
+        public String encryptedData;
+        public String signature;
+    }
+
+
 }
