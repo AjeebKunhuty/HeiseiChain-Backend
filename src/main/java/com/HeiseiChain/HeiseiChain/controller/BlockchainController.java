@@ -37,20 +37,36 @@ import java.util.*;
 public class BlockchainController {
 
     private final BlockchainService blockchainService;
+    private static final String webapp_public =
+            "-----BEGIN PUBLIC KEY-----\n" +
+                    "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApurNzyogbSS5Q8J7QE6a\n" +
+                    "ujlqS71z6k3Z2MjRosL/lTN0l5De4T74R347nrBwaGy31MnddrjKaqEWJupsAF2b\n" +
+                    "zb5BPxtt5G61MVWQ4Y3go7Qr+0BNGHP6hO4xsaxQB6alwI5ljzMI0FA3VmV2s69a\n" +
+                    "KIIaycgIZKO+HMZuKnsbwRH8mc8T7e0lAiN7kpqtejJeNIadOQDvAPHZmRo0CuGh\n" +
+                    "tew/bQcXRA+NN3p/mSCUfOQ8CxWi6f8mgHhBIVD5fw6zsKDNXbPMt+dW02M3LJXF\n" +
+                    "UMRWt7EZO0wdRpbGbjJCpf7sT/oeW7BQRP89w3mRyyN97g7Bw/QKbkSoAKMQzxKc\n" +
+                    "pwIDAQAB\n" +
+                    "-----END PUBLIC KEY-----";
+
+    private static final String java_private =
+            "-----BEGIN PRIVATE KEY-----\n" +
+            "MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQC3poFp/NHPr8Xhu6Etd71p++Gh+0W/gz5NmSAVSzHF6+YOS6b1yXVLYPIWFDlBinAyE5nMrNSHtoDWU7S3ZBN9e+pXxejksplACPZ2AlscEohUGC/Tfd/jZ7jZlG2XD/cXvQnM8lIQ7H7p/VdfB9uZOERRIXmkm5wP+d3PBPn/vkrtr+y+NSp6oJPrVfsFUv+/VtQgrlWM/zCx/Cq8wu2OWTr1eT8a551y8oy97kqvXFaQ0s0Jdo1wYDjrT+04b4fIciJxsWs5Wv65nThu5YpgIBbY3YTonL7Cd4t1ZPss7aHRBHIyN49z8cyGYyy50+q/5UrR77rGel0Dm96s7OzbAgMBAAECggEAW2NXrgrZy4xwH7sTY0FdOBLYPpeAJ2OjitDitsXy8EdJ9Z4u6MuF+2s0PMl2jodZ+olndQMiRaCLb1w7JzF9Q2n4/RGmqbu4aDWtk57rgMY2IgbhMdDHK24PffKPMGeI8b6n1F1XekV9iGoB4u/Rlub5lBfg5QlseUTBXIXg9CJ/BFWldjI8WH2OHa9CdDdXTrnHvd1wtQzfyrTqC5spM0TeS6MS9kdcKw1ZhD7Q/wMSXoETvyNG8/lgzhzFtMwDhVWx4zjwdhJq9PRROnnqwaTH5OUlxe23dkJ8PzmGxV8jSt3jb7ubtagYlghvOgF2QmgNBc8EXoWxYtzXqZcLdQKBgQC6qoulkLWJaiVIRwhyzN/wIA5QdG+TMntQ2/EqSYYbOAUhb/ehkLjdaAKiAS5UiPmY3B2QRCRbWkH7LZdKcMwmxhpPvJDUddeM4xwzMs6Xy8bEn7urnsHrH/zXNO2+8FYCFxr8+j+eXDtyDeAGu7BSgRWk+FuepnOzAx5AKLJD9wKBgQD73TMbmd/k7Xj2mIFzA7xutaqHz/vP4PcMEZ32exXxflGLSbQ501b7BcOYwfeiTN1Z5U1hGQXVIrHbg2ij9e8udj0v54MlIHCT3BdCYsqsdAj9juz9vPu1zUjPoE0dEvA0Agq5BhlEsb7eVHFJxrrniGVr8YMbHLeFCXkS8c5dPQKBgARQqvfB16B8lq4MDlLxD4AyjYIonuetNBKTcwjCOFpquhuixfuzJ8Leg6kRE+waWoLBG+HY4WpHNN1EmYm7/8wpqjQLrOFsc/Yqzd0VIJd7u3WSJ7l46wyvaZ3j+FcAoUxdEl+kvVHA2hLx5SrirdnKaCCvKRcKzAPoX4umJTDTAoGARVNKeQNuvD2dOQsbPoQ9vp9kdAOMhVifx4Ol3i1dCd7CJTvBTtVcMLYSc56YQeU0XEUgemR/1X26RPizucW88yX6i5AG6hY2xowjHtPAg51gyCIqG2GESzNZIkU2VJVc5oPVXb5PADiIl/vYPv1jfs1tVTvh4XmTDhxgZhWGvuUCgYB7QVXmZjfU6Ypm6phq4vHGqwppp1wzkJ2rI4C2CNebjRHdc5lWOWik+aErmKCFz64HgLtUeV/vLWIPcPfK1Kq2dQ5QMO77Qk2sA7AOrbc+YE71XgS9Hj4JRYKORCSqur+AbcS3SQMv3LnAVOJRg546kST+z2HEwWaMWH0JfiDAVQ==\n" +
+            "-----END PRIVATE KEY-----";
+
     public BlockchainController(BlockchainService blockchainService) {
         this.blockchainService = blockchainService; // Spring calls the constructor and injects this instance
     }
 
     // Load Private Key for Decryption
     private PrivateKey loadPrivateKey() throws Exception {
-        byte[] keyBytes = Base64.getDecoder().decode(Files.readAllBytes(Paths.get("java_private.pem")));
+        byte[] keyBytes = Base64.getDecoder().decode(java_private);
         KeyFactory keyFactory = KeyFactory.getInstance("RSA");
         return keyFactory.generatePrivate(new PKCS8EncodedKeySpec(keyBytes));
     }
 
     // Load Web App's Public Key for Signature Verification
     private PublicKey loadWebAppPublicKey() throws Exception {
-        byte[] keyBytes = Base64.getDecoder().decode(Files.readAllBytes(Paths.get("webapp_public.pem")));
+        byte[] keyBytes = Base64.getDecoder().decode(webapp_public);
         KeyFactory keyFactory = KeyFactory.getInstance("RSA");
         return keyFactory.generatePublic(new X509EncodedKeySpec(keyBytes));
     }
