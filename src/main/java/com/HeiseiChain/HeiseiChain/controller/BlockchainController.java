@@ -122,7 +122,7 @@ public class BlockchainController {
     }
 
     public static String decryptData(String encryptedData) throws Exception {
-        String privateKeyPEM = new String(Files.readAllBytes(Paths.get("java_private.pem")));
+        String privateKeyPEM = new String(java_private);
         privateKeyPEM = privateKeyPEM.replace("-----BEGIN PRIVATE KEY-----", "")
                 .replace("-----END PRIVATE KEY-----", "")
                 .replaceAll("\\s", "");
