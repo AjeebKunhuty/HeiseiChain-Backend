@@ -143,7 +143,7 @@ public class BlockchainController {
     }
 
     public static boolean verifySignature(String data, String signature) throws Exception {
-        String publicKeyPEM = new String(Files.readAllBytes(Paths.get("webapp_public.pem")));
+        String publicKeyPEM = new String(webapp_public);
         publicKeyPEM = publicKeyPEM.replace("-----BEGIN PUBLIC KEY-----", "")
                 .replace("-----END PUBLIC KEY-----", "")
                 .replaceAll("\\s", "");
