@@ -228,7 +228,7 @@ public class BlockchainController {
                 return "Error: Could not retrieve wallet or private key for sender '" + senderUsername + "'!";
             }
 
-            Wallet recipientWallet = blockchainService.getWalletByUsername(senderUsername);
+            Wallet recipientWallet = blockchainService.getWalletByUsername(recipientUsername);
             if (recipientWallet.role.equals("donor")) {
                 return "Error: Recipient is a donor";
             }
